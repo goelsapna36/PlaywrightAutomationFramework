@@ -3,21 +3,16 @@ name: Playwright CI
 on:
   push:
     branches:
-      - main
       - Master
       - sapna1
 
   pull_request:
     branches:
-      - main
       - Master
 
   schedule:
     # Every day at 12:00 AM IST
     - cron: '30 18 * * *'
-
-    # Temporary: 15 August 2026 at 10:00 PM IST
-    - cron: '30 16 15 8 *'
 
   workflow_dispatch:
 
