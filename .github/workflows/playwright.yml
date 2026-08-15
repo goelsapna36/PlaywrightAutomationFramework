@@ -18,6 +18,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
+    env:
+      JIRA_DOMAIN: ${{ secrets.JIRA_DOMAIN }}
+      JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+      JIRA_TOKEN: ${{ secrets.JIRA_TOKEN }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -33,63 +38,8 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
 
-      - name: Run all Playwright tests
-        id: playwright
-        continue-on-error: true
+      - name: Run Playwright tests
         run: npx playwright test
-
-      - name: Comment test result on Jira
-        if: always()
-        env:
-          JIRA_DOMAIN: ${{ secrets.JIRA_DOMAIN }}
-          JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
-          JIRA_TOKEN: ${{ secrets.JIRA_TOKEN }}
-        run: |
-          node -e "
-          const axios = require('axios');
-
-          const passed = '${{ steps.playwright.outcome }}' === 'success';
-
-          const message = passed
-            ? '✅ Playwright CI tests passed successfully.'
-            : '❌ Playwright CI tests failed. Check the GitHub Actions Playwright report.';
-
-          axios.post(
-            'https://' + process.env.JIRA_DOMAIN + '/rest/api/3/issue/KAN-1/comment',
-            {
-              body: {
-                type: 'doc',
-                version: 1,
-                content: [{
-                  type: 'paragraph',
-                  content: [{
-                    type: 'text',
-                    text: message
-                  }]
-                }]
-              }
-            },
-            {
-              auth: {
-                username: process.env.JIRA_EMAIL,
-                password: process.env.JIRA_TOKEN
-              },
-              headers: {
-                'Content-Type': 'application/json'
-              }
-            }
-          )
-          .then(() => console.log('✅ Jira comment created'))
-          .catch(error => {
-            console.error('❌ Jira comment failed');
-            console.error(error.response?.data || error.message);
-            process.exit(1);
-          });
-          "
-
-      - name: Fail workflow if Playwright failed
-        if: steps.playwright.outcome == 'failure'
-        run: exit 1
 
       - name: Upload Playwright Report
         if: always()

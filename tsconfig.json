@@ -4,6 +4,7 @@
     "module": "commonjs",
     "esModuleInterop": true,
     "strict": false,
-    "types": ["node"]
+    "types": ["node"],
+    "noEmit": true
   }
 }
