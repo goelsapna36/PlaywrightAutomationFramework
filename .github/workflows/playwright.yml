@@ -22,6 +22,7 @@ jobs:
       JIRA_DOMAIN: ${{ secrets.JIRA_DOMAIN }}
       JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
       JIRA_TOKEN: ${{ secrets.JIRA_TOKEN }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
     steps:
       - name: Checkout repository

@@ -4,6 +4,8 @@ import {
   createJiraIssue
 } from "./jira.client";
 
+import { sendSlackMessage } from "./slack.client";
+
 export async function handleJiraFailure(
   testName: string,
   errorMessage: string
@@ -29,6 +31,10 @@ export async function handleJiraFailure(
 
       console.log(`✅ Jira comment added to ${issueKey}`);
 
+      await sendSlackMessage(
+        `❌ Playwright test failed: ${testName}\nJira: ${issueKey}\n${errorMessage}`
+      );
+
       return issueKey;
     }
 
@@ -40,6 +46,10 @@ export async function handleJiraFailure(
     );
 
     console.log(`✅ New Jira Bug created: ${newIssue.key}`);
+
+    await sendSlackMessage(
+      `❌ Playwright test failed: ${testName}\nJira: ${newIssue.key}\n${errorMessage}`
+    );
 
     return newIssue.key;
 
