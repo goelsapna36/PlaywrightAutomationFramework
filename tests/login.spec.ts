@@ -3,7 +3,10 @@ import { testData } from '../utils/testData';
 
 test.describe('Login Tests', () => {
 
-  test('User should login successfully', async ({ page, loginPage }) => {
+  test(
+  'User should login successfully',
+  { tag: '@regression' },
+  async ({ page, loginPage }) => {
 
     await page.goto('/');
 
@@ -12,8 +15,6 @@ test.describe('Login Tests', () => {
       testData.login.password
     );
 
-    await expect(page.locator('.title')).toHaveText('Products');
-
-  });
+await expect(page.locator('.title')).toHaveText('Products');  });
 
 });

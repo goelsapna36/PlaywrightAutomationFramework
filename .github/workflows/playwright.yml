@@ -12,6 +12,15 @@ on:
       - main
       - Master
 
+  schedule:
+    # Every day at 12:00 AM IST
+    - cron: '30 18 * * *'
+
+    # Temporary: 15 August 2026 at 10:00 PM IST
+    - cron: '30 16 15 8 *'
+
+  workflow_dispatch:
+
 jobs:
   playwright-tests:
     name: Run Playwright Tests
@@ -39,8 +48,15 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
 
-      - name: Run Playwright tests
-        run: npx playwright test
+      - name: Run Playwright Tests
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "🌙 Scheduled Regression Run"
+            npx playwright test --grep @regression
+          else
+            echo "🚀 Running All Tests"
+            npx playwright test
+          fi
 
       - name: Upload Playwright Report
         if: always()
