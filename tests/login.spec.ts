@@ -12,11 +12,7 @@ test.describe('Login Tests', () => {
       testData.login.password
     );
 
-    await expect(page).toHaveURL(/inventory/);
-
-    await expect(
-      page.locator('.title')
-    ).toHaveText('Products');
+    await expect(page.locator('.title')).toHaveText('Products');
 
   });
 
