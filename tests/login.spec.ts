@@ -11,7 +11,6 @@ test.describe('Login Tests', () => {
       testData.login.username,
       testData.login.password
     );
-    expect(1).toBe(2);
 
     await expect(page.locator('.title')).toHaveText('Products');
 
