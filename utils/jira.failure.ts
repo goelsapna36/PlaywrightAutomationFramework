@@ -5,12 +5,18 @@ import {
 } from "./jira.client";
 
 import { sendSlackMessage } from "./slack.client";
+import { analyzeFailure } from "./failure.analyzer";
 
 export async function handleJiraFailure(
   testName: string,
   errorMessage: string
 ) {
   try {
+    const failureType = analyzeFailure(errorMessage);
+
+    console.log(`🔎 Failure type: ${failureType}`);
+
+
     const summary = "Login test failed";
 
     console.log("🔎 Searching Jira for:", summary);

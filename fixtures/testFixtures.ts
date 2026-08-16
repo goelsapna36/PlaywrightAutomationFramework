@@ -2,9 +2,10 @@ import { test as base } from '@playwright/test';
 import { LoginPage } from '../pages/LoginPage';
 import { handleJiraFailure } from '../utils/jira.failure';
 import { sendSlackMessage } from '../utils/slack.client';
-
+//import { ProductPage } from '../pages/ProductPage';
 type TestFixtures = {
   loginPage: LoginPage;
+  //productPage: ProductPage;
 };
 
 export const test = base.extend<TestFixtures>({
