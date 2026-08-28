@@ -1,0 +1,82 @@
+name: Playwright Self Healing
+
+on:
+  workflow_dispatch:
+
+  workflow_run:
+    workflows:
+      - Playwright CI
+    types:
+      - completed
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  self-healing:
+    name: Analyze and Verify Failed Tests
+    runs-on: ubuntu-latest
+
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'failure'
+
+    env:
+      JIRA_DOMAIN: ${{ secrets.JIRA_DOMAIN }}
+      JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+      JIRA_TOKEN: ${{ secrets.JIRA_TOKEN }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_APP_TOKEN: ${{ secrets.SLACK_APP_TOKEN }}
+      HEALER_ENABLED: "true"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Run TypeScript check
+        run: npx tsc --noEmit
+
+      - name: Start Slack Healer Bot
+        run: |
+          nohup npx tsx utils/slack.bot.ts > slack-healer.log 2>&1 &
+          sleep 5
+          cat slack-healer.log
+
+      - name: Run Playwright verification
+        id: rerun
+        continue-on-error: true
+        run: npx playwright test
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: self-healing-playwright-report
+          path: playwright-report/
+          retention-days: 30
+
+      - name: Self-healing result
+        if: always()
+        run: |
+          if [ "${{ steps.rerun.outcome }}" = "success" ]; then
+            echo "🎉 Self-Healing verification passed"
+          else
+            echo "🚨 Self-Healing verification failed"
+            echo "Manual investigation required"
+          fi
