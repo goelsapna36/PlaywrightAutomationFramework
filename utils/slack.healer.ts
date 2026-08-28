@@ -3,11 +3,16 @@ import { App } from '@slack/bolt';
 import fs from 'fs';
 import { execFile } from 'child_process';
 
-export const app = new App({
-  token: process.env.SLACK_BOT_TOKEN,
-  appToken: process.env.SLACK_APP_TOKEN,
-  socketMode: true,
-});
+// Slack App is created only when Socket Mode is available.
+// This prevents normal Playwright runs from failing in GitHub Actions.
+export const app = process.env.SLACK_APP_TOKEN
+  ? new App({
+      token: process.env.SLACK_BOT_TOKEN,
+      appToken: process.env.SLACK_APP_TOKEN,
+      socketMode: true,
+    })
+  : null;
+
 
 // =========================================================
 // SEND HEALER APPROVAL MESSAGE
@@ -19,6 +24,15 @@ export async function sendHealerApprovalMessage(
   searchText: string,
   replaceText: string
 ) {
+  // GitHub/local test process without Socket Mode
+  // should not crash.
+  if (!app) {
+    console.log(
+      '⚠️ Slack Socket Mode is not available. Skipping approval message.'
+    );
+    return;
+  }
+
   await app.client.chat.postMessage({
     channel: '#qa-automation',
 
@@ -88,165 +102,161 @@ export async function sendHealerApprovalMessage(
 // APPROVE HEALING
 // =========================================================
 
-app.action('approve_healing', async ({ ack, body, client }) => {
+if (app) {
+  app.action('approve_healing', async ({ ack, body, client }) => {
 
-  await ack();
+    await ack();
 
-  const actionData = JSON.parse(
-    (body as any).actions[0].value
-  );
-
-  const {
-    filePath,
-    searchText,
-    replaceText,
-    testName,
-  } = actionData;
-
-  try {
-
-    // Read file
-    const fileContent = fs.readFileSync(
-      filePath,
-      'utf8'
+    const actionData = JSON.parse(
+      (body as any).actions[0].value
     );
 
-    // Verify expected text exists
-    if (!fileContent.includes(searchText)) {
-
-      await client.chat.postMessage({
-        channel: (body as any).channel.id,
-
-        text:
-          `❌ *Healing Failed*\n\n` +
-          `"${searchText}" was not found in:\n` +
-          `${filePath}\n\n` +
-          `No code was changed.`,
-      });
-
-      return;
-    }
-
-    // Apply fix
-    const updatedContent = fileContent.replace(
+    const {
+      filePath,
       searchText,
-      replaceText
-    );
+      replaceText,
+      testName,
+    } = actionData;
 
-    fs.writeFileSync(
-      filePath,
-      updatedContent,
-      'utf8'
-    );
+    try {
 
-    console.log(
-      `✅ Healing applied: ${searchText} → ${replaceText}`
-    );
+      const fileContent = fs.readFileSync(
+        filePath,
+        'utf8'
+      );
 
-    await client.chat.postMessage({
-      channel: (body as any).channel.id,
-
-      text:
-        `✅ *Fix Applied*\n\n` +
-        `Test: ${testName}\n` +
-        `File: ${filePath}\n` +
-        `Changed: \`${searchText}\` → \`${replaceText}\`\n\n` +
-        `🔄 Automatically rerunning Playwright test...`,
-    });
-
-
-    // =====================================================
-    // AUTOMATIC PLAYWRIGHT RERUN
-    // =====================================================
-
-    execFile(
-      'npx',
-      ['playwright', 'test', filePath],
-      {
-        cwd: process.cwd(),
-        windowsHide: true,
-      },
-      async (error, stdout, stderr) => {
-
-        if (error) {
-
-          console.error(
-            '❌ Automatic Playwright rerun failed'
-          );
-
-          console.error(stdout);
-          console.error(stderr);
-
-          await client.chat.postMessage({
-            channel: (body as any).channel.id,
-
-            text:
-              `❌ *Self-Healing Failed*\n\n` +
-              `Test: ${testName}\n\n` +
-              `The fix was applied, but the Playwright test still failed.\n\n` +
-              `🔎 Manual investigation required.`,
-          });
-
-          return;
-        }
-
-
-        // =================================================
-        // TEST PASSED AFTER HEALING
-        // =================================================
-
-        console.log(
-          '🎉 Automatic Playwright rerun passed'
-        );
+      // Verify expected text exists
+      if (!fileContent.includes(searchText)) {
 
         await client.chat.postMessage({
           channel: (body as any).channel.id,
 
           text:
-            `🎉 *Self-Healing Successful*\n\n` +
-            `Test: ${testName}\n\n` +
-            `✅ Fix applied\n` +
-            `✅ Playwright test rerun passed\n\n` +
-            `🤖 Automation healed successfully.`,
+            `❌ *Healing Failed*\n\n` +
+            `"${searchText}" was not found in:\n` +
+            `${filePath}\n\n` +
+            `No code was changed.`,
         });
+
+        return;
       }
-    );
 
-  } catch (error) {
+      // Apply fix
+      const updatedContent = fileContent.replace(
+        searchText,
+        replaceText
+      );
 
-    console.error(
-      '❌ Healing failed:',
-      error
-    );
+      fs.writeFileSync(
+        filePath,
+        updatedContent,
+        'utf8'
+      );
+
+      console.log(
+        `✅ Healing applied: ${searchText} → ${replaceText}`
+      );
+
+      await client.chat.postMessage({
+        channel: (body as any).channel.id,
+
+        text:
+          `✅ *Fix Applied*\n\n` +
+          `Test: ${testName}\n` +
+          `File: ${filePath}\n` +
+          `Changed: \`${searchText}\` → \`${replaceText}\`\n\n` +
+          `🔄 Automatically rerunning Playwright test...`,
+      });
+
+
+      // =====================================================
+      // AUTOMATIC PLAYWRIGHT RERUN
+      // =====================================================
+
+      execFile(
+        'npx',
+        ['playwright', 'test', filePath],
+        {
+          cwd: process.cwd(),
+          windowsHide: true,
+        },
+        async (error, stdout, stderr) => {
+
+          if (error) {
+
+            console.error(
+              '❌ Automatic Playwright rerun failed'
+            );
+
+            console.error(stdout);
+            console.error(stderr);
+
+            await client.chat.postMessage({
+              channel: (body as any).channel.id,
+
+              text:
+                `❌ *Self-Healing Failed*\n\n` +
+                `Test: ${testName}\n\n` +
+                `The fix was applied, but the Playwright test still failed.\n\n` +
+                `🔎 Manual investigation required.`,
+            });
+
+            return;
+          }
+
+          console.log(
+            '🎉 Automatic Playwright rerun passed'
+          );
+
+          await client.chat.postMessage({
+            channel: (body as any).channel.id,
+
+            text:
+              `🎉 *Self-Healing Successful*\n\n` +
+              `Test: ${testName}\n\n` +
+              `✅ Fix applied\n` +
+              `✅ Playwright test rerun passed\n\n` +
+              `🤖 Automation healed successfully.`,
+          });
+        }
+      );
+
+    } catch (error) {
+
+      console.error(
+        '❌ Healing failed:',
+        error
+      );
+
+      await client.chat.postMessage({
+        channel: (body as any).channel.id,
+
+        text:
+          `❌ *Automation Healer Error*\n\n` +
+          `The proposed fix could not be applied.`,
+      });
+    }
+  });
+
+
+  // =========================================================
+  // REJECT HEALING
+  // =========================================================
+
+  app.action('reject_healing', async ({ ack, body, client }) => {
+
+    await ack();
 
     await client.chat.postMessage({
       channel: (body as any).channel.id,
 
       text:
-        `❌ *Automation Healer Error*\n\n` +
-        `The proposed fix could not be applied.`,
+        `❌ *Healing Rejected*\n\n` +
+        `No automation code was changed.`,
     });
-  }
-});
 
-
-// =========================================================
-// REJECT HEALING
-// =========================================================
-
-app.action('reject_healing', async ({ ack, body, client }) => {
-
-  await ack();
-
-  await client.chat.postMessage({
-    channel: (body as any).channel.id,
-
-    text:
-      `❌ *Healing Rejected*\n\n` +
-      `No automation code was changed.`,
+    console.log(
+      '❌ Healing rejected'
+    );
   });
-
-  console.log(
-    '❌ Healing rejected by user'
-  );
-});
+}
