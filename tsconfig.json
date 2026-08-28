@@ -5,6 +5,7 @@
     "esModuleInterop": true,
     "strict": false,
     "types": ["node"],
-    "noEmit": true
+    "noEmit": true,
+    "skipLibCheck": true
   }
 }

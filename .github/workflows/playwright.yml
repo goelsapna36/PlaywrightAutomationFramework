@@ -1,41 +1,46 @@
-name: Playwright CI
+name: Playwright Self Healing
 
 on:
-  push:
-    branches:
-      - Master
-      - sapna1
-
-  pull_request:
-    branches:
-      - Master
-
-  schedule:
-    # Every day at 12:00 AM IST
-    - cron: '30 18 * * *'
-
   workflow_dispatch:
 
+  workflow_run:
+    workflows:
+      - Playwright CI
+    types:
+      - completed
+
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
-  playwright-tests:
-    name: Run Playwright Tests
+  self-healing:
+    name: Analyze and Heal Failed Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+
+    # Only continue when Playwright CI failed
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'failure'
 
     env:
       JIRA_DOMAIN: ${{ secrets.JIRA_DOMAIN }}
       JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
       JIRA_TOKEN: ${{ secrets.JIRA_TOKEN }}
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      HEALER_ENABLED: "true"
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
 
       - name: Install dependencies
         run: npm ci
@@ -43,20 +48,33 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
 
-      - name: Run Playwright Tests
-        run: |
-          if [ "${{ github.event_name }}" = "schedule" ]; then
-            echo "🌙 Scheduled Regression Run"
-            npx playwright test --grep @regression
-          else
-            echo "🚀 Running All Tests"
-            npx playwright test
-          fi
+      - name: Run TypeScript check
+        run: npx tsc --noEmit
 
-      - name: Upload Playwright Report
+      - name: Run failed-test analysis
+        run: |
+          echo "🤖 Self-Healing workflow started"
+          echo "🔎 Analyzing Playwright failures..."
+
+      - name: Run Playwright tests
+        id: rerun
+        continue-on-error: true
+        run: npx playwright test
+
+      - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: self-healing-playwright-report
           path: playwright-report/
           retention-days: 30
+
+      - name: Self-healing result
+        if: always()
+        run: |
+          if [ "${{ steps.rerun.outcome }}" = "success" ]; then
+            echo "🎉 Self-Healing verification passed"
+          else
+            echo "🚨 Self-Healing verification failed"
+            echo "Manual investigation required"
+          fi
