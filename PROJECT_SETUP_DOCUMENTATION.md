@@ -1,343 +1,398 @@
-# 📋 Playwright Automation Framework - Complete Setup Documentation
+# Playwright Automation Framework - Current Project Documentation
 
 ## Overview
-This document explains the Playwright Automation Framework setup that was completed today. Each step below describes what was done and why it's important.
+This project is a Playwright + TypeScript automation framework built for UI validation against SauceDemo. It includes cross-browser execution, page object model structure, reusable fixtures, browser state authentication, Jira integration, Slack notifications, and a failure-healing mechanism.
+
+This document reflects the actual implementation that was built in the project and is meant to serve as a working reference for future maintenance and onboarding.
 
 ---
 
-## ✅ 1. Playwright + TypeScript
-
-### What is it?
-Playwright is a tool for testing web applications automatically. TypeScript is a language that helps write better, more reliable code.
-
-### Purpose
-- **Automate testing**: Instead of manually clicking and testing websites, we write scripts that do it automatically
-- **Save time**: Run hundreds of tests in seconds instead of hours
-- **Catch bugs early**: Find problems before users see them
-- **Type safety**: TypeScript prevents many errors before the code even runs
-
-### Why we need it
-Testing manually is slow, error-prone, and expensive. Automation makes testing fast, reliable, and cost-effective.
+## Project Goal
+The framework is designed to:
+- automate key user flows such as login, product listing, and cart validation
+- run tests in multiple browsers with reusable auth state
+- keep automation code clean and maintainable using Page Object Model
+- notify the team when tests fail
+- create Jira issues/comments automatically from failed test data
+- support a lightweight repair workflow for common locator and UI changes
 
 ---
 
-## ✅ 2. Page Object Model (POM)
-
-### What is it?
-A way of organizing test code where each page of the website gets its own file that describes how to interact with it.
-
-### Example Structure
-```
-pages/
-  ├── LoginPage.ts      (Describes login page elements and actions)
-  ├── ProductPage.ts    (Describes product page elements and actions)
-```
-
-### Purpose
-- **Easy to maintain**: When a page changes, you only update one file
-- **Reusable code**: Use the same page object in multiple tests
-- **Clear and readable**: Tests look like natural language instead of technical code
-- **Reduces duplication**: Don't write the same code twice
-
-### Why we need it
-Without POM, if a button location changes, you'd need to fix it in 100 tests. With POM, you fix it in one place.
+## Tech Stack
+- Playwright Test
+- TypeScript
+- Node.js
+- dotenv
+- Axios
+- Slack Bolt
+- SauceDemo as the target app
 
 ---
 
-## ✅ 3. Custom Fixtures
+## Current Folder Structure
 
-### What is it?
-Fixtures are setup and cleanup code that runs before and after each test. Custom fixtures make this easier and more powerful.
-
-### Example
-```typescript
-// Before test: Login and prepare the browser
-// After test: Logout and cleanup
-```
-
-### Purpose
-- **Consistent test setup**: Every test starts in the same clean state
-- **Reusable setup**: Don't repeat login/setup code in every test
-- **Automatic cleanup**: Tests don't affect each other
-- **Less code**: Fixtures reduce code duplication by 50%+
-
-### Why we need it
-Without fixtures, each test would need to do its own setup, leading to long, repetitive tests that are hard to maintain.
-
----
-
-## ✅ 4. Test Data Management
-
-### What is it?
-A centralized place where all test data (usernames, passwords, URLs, etc.) is stored and managed.
-
-### Example
-```typescript
-// testData.ts contains all data like:
-- Valid user credentials
-- Invalid credentials for error testing
-- Product IDs to test with
+```text
+PlaywrightFreamwork/
+├── config/
+│   └── envirment.ts
+├── fixtures/
+│   └── testFixtures.ts
+├── pages/
+│   ├── CartPage.ts
+│   ├── LoginPage.ts
+│   └── ProductPage.ts
+├── playwright/
+│   ├── chrome-user.json
+│   └── firefox-user.json
+├── tests/
+│   ├── auth.chrome.setup.ts
+│   ├── auth.firefox.setup.ts
+│   ├── cart.spec.ts
+│   ├── login.spec.ts
+│   ├── product.spec.ts
+│   └── Api01/
+│       └── 01_Post_API_Reguest_Static.spec.ts
+├── utils/
+│   ├── failure.analyzer.ts
+│   ├── healer.ts
+│   ├── jira.client.ts
+│   ├── jira.failure.ts
+│   ├── slack.bot.ts
+│   ├── slack.client.ts
+│   ├── slack.healer.ts
+│   ├── testData.ts
+│   └── test-data/
+│       └── api_request/
+│           └── POst_Api.json
+├── playwright.config.ts
+├── package.json
+├── tsconfig.json
+├── PROJECT_SETUP_DOCUMENTATION.md
+├── test-jira.ts
+└── test-results/
 ```
 
-### Purpose
-- **Easy updates**: Change test data once, all tests use the new data
-- **Security**: Sensitive data is managed in one place
-- **Flexibility**: Test with different data without changing test code
-- **Real-world testing**: Use actual production-like data
+---
 
-### Why we need it
-Without centralized data management, test data gets scattered across hundreds of files, making it hard to update and maintain.
+## Core Config Settings
+
+### Playwright config
+The project uses `playwright.config.ts` to define the execution environment and browser setup.
+
+Important configuration details:
+- `testDir: './tests'`
+- `fullyParallel: true`
+- `reporter: [['html', { open: 'never' }]]`
+- `baseURL: 'https://www.saucedemo.com'`
+- failed tests keep screenshot and trace via:
+  - `screenshot: 'only-on-failure'`
+  - `trace: 'retain-on-failure'`
+
+### Browser projects
+The framework creates separate projects for Chrome and Firefox:
+- `chromium-setup`
+- `chromium`
+- `firefox-setup`
+- `firefox`
+
+This enables the project to create and reuse storage state for authenticated sessions.
 
 ---
 
-## ✅ 5. Jira Integration
+## Environment Configuration
 
-### What is it?
-Automatic connection to Jira (a project management tool) that creates bugs and test results directly in the system.
+The file `config/envirment.ts` contains the base URL for all tests:
 
-### Purpose
-- **Automatic bug reports**: When a test fails, a bug ticket is automatically created
-- **Track issues**: Keep all test failures organized in one place
-- **Team visibility**: Developers know immediately when something breaks
-- **Link tests to requirements**: Connect tests to the features they test
-
-### Why we need it
-Manual logging of bugs is slow and error-prone. Automation ensures every failure is captured and tracked without extra work.
-
----
-
-## ✅ 6. Slack Integration
-
-### What is it?
-Automatic messages sent to Slack (team chat tool) when tests run and when they fail.
-
-### Example Message
-```
-🔴 Test Failed: Login Test
-Failed at: 2:30 PM
-Reason: Invalid credentials
-Link: [View Report]
+```ts
+export const environment = {
+  baseURL: 'https://www.saucedemo.com',
+};
 ```
 
-### Purpose
-- **Real-time notifications**: Team knows immediately when tests fail
-- **No manual checking**: Don't need to log into systems to see results
-- **Quick responses**: Teams can fix issues faster
-- **Team collaboration**: Everyone stays informed
-
-### Why we need it
-Without notifications, people might not know about test failures for hours or days, causing delays in fixing bugs.
+This approach makes it easy to centralize environment changes without editing multiple files.
 
 ---
 
-## ✅ 7. GitHub Actions / CI (Continuous Integration)
+## Browser Authentication Flow
 
-### What is it?
-Automatic testing that runs every time code is pushed to GitHub. It tests the code in the cloud automatically.
+The project uses Playwright storage state to save and reuse login sessions.
 
-### How it works
-```
-1. Developer pushes code to GitHub
-2. GitHub Actions automatically runs all tests
-3. Results are shown on GitHub
-4. If tests fail, the merge is blocked
-```
+### Setup files
+- `tests/auth.chrome.setup.ts`
+- `tests/auth.firefox.setup.ts`
 
-### Purpose
-- **Automatic testing**: Tests run without anyone doing anything manually
-- **Cloud testing**: Tests run on different machines and browsers automatically
-- **Catch issues early**: Problems are found before code is merged
-- **Team safety**: Bad code never makes it to production
+These files:
+1. open the SauceDemo login page
+2. log in using valid credentials
+3. verify the inventory page is loaded
+4. save browser context state to JSON files in `playwright/.auth/`
 
-### Why we need it
-Manual testing before each deployment is slow and easy to forget. Automation ensures every change is tested.
+### Usage in config
+In `playwright.config.ts`, each browser project references a saved auth file:
 
----
-
-## ✅ 8. HTML Report
-
-### What is it?
-A visual report that shows test results in a nice, easy-to-read format that opens in a web browser.
-
-### What it includes
-- ✅ Passed tests (in green)
-- ❌ Failed tests (in red) with error messages
-- ⏭️ Skipped tests
-- Duration of each test
-- Detailed error information
-
-### Purpose
-- **Visual clarity**: See results at a glance
-- **Easy sharing**: Send a report link to the team
-- **Debugging help**: See exactly what went wrong and why
-- **Historical tracking**: Keep records of all test runs
-
-### Why we need it
-Raw test output is hard to read. A visual report makes it easy for anyone to understand what happened.
-
----
-
-## ✅ 9. Playwright Artifacts
-
-### What is it?
-Automatic collection of debugging information like videos, screenshots, and browser traces when tests fail.
-
-### What's captured
-- 🎥 Video of what happened during the test
-- 📸 Screenshots at key moments
-- 📋 Browser console logs
-- 🔍 Network traffic logs
-
-### Purpose
-- **Replay failures**: Watch exactly what the test did when it failed
-- **Debug issues**: See console errors and network problems
-- **Faster debugging**: Don't need to run the test again to see what happened
-- **Documentation**: Video proof of what the bug is
-
-### Why we need it
-Without artifacts, when a test fails you often need to run it again to see what went wrong. Artifacts give you the information immediately.
-
----
-
-## ✅ 10. Screenshot on Failure
-
-### What is it?
-Automatically taking a screenshot whenever a test fails, showing exactly what the screen looked like at that moment.
-
-### Example
-When a test fails because a button is missing, the screenshot shows exactly where it should have been.
-
-### Purpose
-- **Visual proof**: See exactly what was wrong
-- **Faster diagnosis**: Developers can understand the problem immediately
-- **Documentation**: Screenshots serve as evidence of bugs
-- **Less debugging**: No need to wonder what went wrong
-
-### Why we need it
-A text error message like "Button not found" doesn't tell you much. A screenshot shows exactly what happened.
-
----
-
-## ✅ 11. Trace on Failure
-
-### What is it?
-A detailed recording of everything that happened during a failed test, including every step, wait, and browser action.
-
-### What's recorded
-- Every action (click, type, navigate)
-- Every wait and delay
-- Network requests and responses
-- JavaScript errors
-- DOM changes
-
-### Purpose
-- **Complete debugging**: Replay exactly what the browser did
-- **Interactive debugging**: Step through the test like a debugger
-- **Root cause analysis**: Find the exact moment something went wrong
-- **Time-travel debugging**: Go back to any moment in the test
-
-### Why we need it
-With just a screenshot, you see one moment. With a trace, you can replay the entire test and understand the full sequence of events.
-
----
-
-## ✅ 12. Regression Tags
-
-### What is it?
-Labels added to tests that mark them as part of the "regression suite" - the most important tests that should always pass.
-
-### Example
-```typescript
-test('Login with valid credentials @regression', async () => {
-  // This test is tagged as regression
-});
+```ts
+storageState: 'playwright/.auth/chrome-user.json'
 ```
 
-### Purpose
-- **Run critical tests frequently**: Test the most important features every time
-- **Quick feedback**: Run 50 critical tests instead of 1000 tests when needed
-- **Risk management**: Ensure core functionality never breaks
-- **Flexible testing**: Different tests for different situations
+and
 
-### Why we need it
-You can't run all 1000 tests every time you commit code - it takes too long. Regression tags let you run only the most critical tests when needed.
+```ts
+storageState: 'playwright/.auth/firefox-user.json'
+```
+
+This allows tests to start from an already-authenticated state and avoids repeating login logic inside every test.
 
 ---
 
-## ✅ 13. Nightly Regression
+## Page Object Model (POM)
 
-### What is it?
-A scheduled test run that automatically starts every night and runs all regression tests when no one is working.
+The UI layer is separated into page classes so actions and selectors are centralized.
 
-### How it works
-```
-11:00 PM: Automated job starts
-- Runs all regression tests on multiple browsers
-- Tests run while everyone sleeps
-8:00 AM: Team sees results in the morning
-```
+### LoginPage
+`pages/LoginPage.ts` contains:
+- username field locator
+- password field locator
+- login button locator
+- reusable `login(username, password)` method
 
-### Purpose
-- **Thorough testing**: Test on multiple browsers and devices at night
-- **No time waste**: Testing happens when it doesn't slow down developers
-- **Early detection**: Team sees failures first thing in the morning
-- **Confidence building**: Comprehensive testing without slowing development
+### ProductPage
+`pages/ProductPage.ts` contains product listing actions and selectors:
+- product name/description/price locators
+- add-to-cart buttons
+- sorting dropdown methods
+- helper methods to read product details
 
-### Why we need it
-Testing everything takes hours. By running at night, we get thorough testing without interrupting developers during the day.
+### CartPage
+`pages/CartPage.ts` contains cart-related actions:
+- cart title validation
+- validation of product details in cart
+- checkout button actions
+- remove button handling
 
----
-
-## ✅ 14. PR Quality Gate / Block Merge
-
-### What is it?
-Automatic rules that prevent code from being merged to the main branch if tests fail.
-
-### How it works
-```
-Developer: "I want to merge my code"
-GitHub: "Running tests..."
-If tests PASS: ✅ Code can be merged
-If tests FAIL: ❌ Code is blocked, must fix tests
-```
-
-### Purpose
-- **Quality assurance**: Bad code never makes it to production
-- **Accountability**: Developers must fix tests before merging
-- **Team protection**: Prevents one person's broken code from affecting everyone
-- **Automatic enforcement**: Rules apply to everyone consistently
-
-### Why we need it
-Without this gate, a developer might accidentally merge broken code. With it, GitHub automatically stops bad code from being merged.
+This keeps tests readable and reduces duplication across scenarios.
 
 ---
 
-## Summary of Benefits
+## Custom Fixtures
 
-### Time & Cost Savings
-- ⏱️ Reduce manual testing by 80-90%
-- 💰 Prevent expensive production bugs
-- 👥 Free up QA team for more complex testing
+The project uses `fixtures/testFixtures.ts` to create reusable test setup and teardown logic.
 
-### Quality Improvements
-- 🐛 Catch bugs before they reach users
-- 🎯 Consistent, reliable test execution
-- 📊 Complete visibility into code quality
+### What the fixture does
+- creates a `loginPage` object for each test
+- automatically opens the app
+- checks whether a valid session already exists
+- logs in only when needed
+- runs post-test validation and notifications
 
-### Team Benefits
-- 📢 Instant notifications of problems
-- 🚀 Fast feedback loop for developers
-- 🔐 Confidence when deploying code
+### Post-test logic
+After each test, the fixture checks whether the test failed or passed:
+- failed test → Jira handling and optional healer flow
+- passed test → Slack success message
 
-### Automation Stack Overview
+This is the central place for test lifecycle behavior.
+
+---
+
+## Test Data Management
+
+`utils/testData.ts` stores standard credentials used across the framework.
+
+```ts
+export const testData = {
+  login: {
+    username: 'standard_user',
+    password: 'secret_sauce',
+  },
+};
 ```
-Code Changes → GitHub Push 
-    ↓
-GitHub Actions CI Pipeline
-    ↓
-Run Tests (Chrome, Firefox, Safari)
-    ↓
-Jira Integration (Create bugs if failed)
+
+This keeps credentials in one place and makes future updates easier.
+
+---
+
+## Existing Tests
+
+### Login test
+`tests/login.spec.ts`
+- verifies a valid login
+- asserts that the inventory page loads
+- uses `@regression` tag
+
+### Product test
+`tests/product.spec.ts`
+- validates all product names, descriptions, and prices
+- checks add-to-cart button count
+- tests product sorting filters (`az`, `za`, `lohi`, `hilo`)
+- uses `@regression` tag
+
+### Cart test
+`tests/cart.spec.ts`
+- adds a product to cart
+- validates cart details match the product listing
+- removes the item and verifies the cart updates
+
+These tests cover the main shopping flow for the SauceDemo application.
+
+---
+
+## Jira Integration
+
+### Files involved
+- `utils/jira.client.ts`
+- `utils/jira.failure.ts`
+
+### What it does
+When a test fails:
+- failure type is analyzed
+- Jira is searched for an existing issue matching the summary
+- if found, a comment is added
+- if not found, a new Jira bug is created
+
+### Jira request behavior
+- project key: `KAN`
+- issue type: `Bug`
+- summary includes the test name scenario
+- description includes the Playwright failure message
+
+This helps keep test failures tracked in Jira without manual ticket creation.
+
+---
+
+## Slack Notifications
+
+### Files involved
+- `utils/slack.client.ts`
+- `utils/slack.healer.ts`
+
+### What it does
+- sends pass/fail messages to a configured Slack webhook
+- uses `SLACK_WEBHOOK_URL` for normal automation notifications
+- uses `SLACK_HEALER_WEBHOOK_URL` for self-healing communications
+
+### Important note
+Slack notifications are conditional and will fail only if the environment variables are not configured.
+
+---
+
+## Failure Analyzer and Healer
+
+### Files involved
+- `utils/failure.analyzer.ts`
+- `utils/healer.ts`
+- `utils/slack.healer.ts`
+
+The framework includes a basic failure classification layer that tries to identify the likely cause of a failed test.
+
+### Failure categories
+- locator/UI issue
+- network/environment issue
+- application/API issue
+- assertion/test logic issue
+- unknown failure
+
+### Healer behavior
+When `HEALER_ENABLED === 'true'` and a test fails, the framework can:
+- detect a likely locator mismatch
+- propose a replacement value
+- send a Slack approval message
+- apply the suggested fix after approval
+- rerun the test automatically
+
+This is a lightweight automation-assisted repair pattern to reduce repeated UI breakage caused by text or selector drift.
+
+---
+
+## Reporting and Artifacts
+
+The Playwright config includes an HTML reporter and failed-test artifacts:
+- HTML report generated from Playwright results
+- screenshots on failure
+- trace retained on failure
+
+This helps in debugging without needing to rerun the test repeatedly.
+
+---
+
+## Execution Commands
+
+From the project root:
+
+```bash
+npx playwright test
+```
+
+To run a specific file:
+
+```bash
+npx playwright test tests/login.spec.ts
+```
+
+To run the file with HTML report output:
+
+```bash
+npx playwright test --reporter=html
+```
+
+---
+
+## Recommended Working Pattern
+
+For future maintenance, keep the following pattern consistent:
+1. Add or update selectors in the appropriate page object file.
+2. Keep test logic in the spec files and not inline in page actions.
+3. Store reusable values in `utils/testData.ts`.
+4. Use fixtures for login and shared setup.
+5. For new failures, check Jira/Slack integration first before changing test logic.
+6. Keep browser auth setup files updated if login flow changes.
+
+---
+
+## Key Implementation Notes
+
+- The project uses `storageState` heavily to optimize execution and avoid repeated login flows.
+- Test logic is intentionally separated from page selectors and interactions.
+- The project is set up to support both local execution and automation alerting.
+- The failure-healing workflow is currently best suited to highly predictable UI issues such as locator text mismatches.
+- `NODE_ENV`/env-based configuration should be expanded further if the framework is extended to other projects or environments.
+
+---
+
+## Future Improvements
+
+This project can be improved further by adding:
+- environment-based config for dev, QA, and prod
+- CI pipeline via GitHub Actions
+- hidden/secrets management through `.env.example`
+- custom suite tags for smoke, regression, nightly, and critical paths
+- more structured reporting with screenshots and historical test trends
+- expanded API test integration alongside UI automation
+
+---
+
+## Summary
+The framework currently includes a solid automation base for UI testing with:
+- Playwright + TypeScript setup
+- reusable page objects
+- browser auth state management
+- cross-browser execution
+- test data centralization
+- Jira bug integration
+- Slack notifications
+- failure classification and healing support
+
+This is a practical and maintainable foundation for future automation work and should be treated as the working baseline for the project.
+
+---
+
+## Final Note for Future Team Members
+When working on this project in the future, start by understanding the flow below:
+
+```text
+Test file → Fixture setup → Page Object Model → Browser execution → Result → Jira/Slack notification
+```
+
+If a failure occurs, check the failing locator, test data, auth state, and the integration files before making broad changes.
+
     ↓
 Slack Notifications (Alert team)
     ↓

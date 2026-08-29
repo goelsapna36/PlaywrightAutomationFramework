@@ -22,14 +22,22 @@ export const test = base.extend<TestFixtures>({
 
         await page.goto('/');
 
-        await loginPage.login(
-            testData.login.username,
-            testData.login.password
-        );
+        // If storageState is already authenticated,
+        // Playwright will open the inventory page directly.
+        const currentUrl = page.url();
 
-        await page.waitForURL(
-            '**/inventory.html'
-        );
+        if (!currentUrl.includes('/inventory.html')) {
+
+            // No authenticated session → perform normal login
+            await loginPage.login(
+                testData.login.username,
+                testData.login.password
+            );
+
+            await page.waitForURL(
+                '**/inventory.html'
+            );
+        }
 
         await use();
     },

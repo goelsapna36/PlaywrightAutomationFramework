@@ -32,19 +32,59 @@ export default defineConfig({
   },
 
   projects: [
+
+    // ==========================================
+    // CHROME AUTH SETUP
+    // ==========================================
+    {
+      name: 'chromium-setup',
+
+      testMatch: /auth\.chrome\.setup\.ts/,
+
+      use: {
+        ...devices['Desktop Chrome'],
+      },
+    },
+
+    // ==========================================
+    // CHROME TESTS
+    // ==========================================
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'playwright/.auth/chrome-user.json',
+      },
+
+      dependencies: ['chromium-setup'],
     },
 
+    // ==========================================
+    // FIREFOX AUTH SETUP
+    // ==========================================
+    {
+      name: 'firefox-setup',
+
+      testMatch: /auth\.firefox\.setup\.ts/,
+
+      use: {
+        ...devices['Desktop Firefox'],
+      },
+    },
+
+    // ==========================================
+    // FIREFOX TESTS
+    // ==========================================
     {
       name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
 
-    // {
-    //   name: 'webkit',
-    //   use: { ...devices['Desktop Safari'] },
-    // },
+      use: {
+        ...devices['Desktop Firefox'],
+        storageState: 'playwright/.auth/firefox-user.json',
+      },
+
+      dependencies: ['firefox-setup'],
+    },
   ],
 });
