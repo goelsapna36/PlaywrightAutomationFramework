@@ -16,5 +16,4 @@ test.describe('Login Tests', () => {
     );
 
 await expect(page.locator('.title')).toHaveText('Products');  });
-
 });

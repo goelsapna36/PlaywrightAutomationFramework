@@ -28,6 +28,9 @@ jobs:
       JIRA_TOKEN: ${{ secrets.JIRA_TOKEN }}
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
+      # Healer enabled on sapna1 pushes and scheduled runs
+      HEALER_ENABLED: ${{ github.ref == 'refs/heads/sapna1' || github.event_name == 'schedule' }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

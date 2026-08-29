@@ -1,27 +1,111 @@
 import { test, expect } from '../fixtures/testFixtures';
-import { testData } from '../utils/testData';
 import { ProductPage } from '../pages/ProductPage';
 
 test(
-  'User should login successfully and navigate to about page',
-  { tag: '@regression' },
-  async ({ page, loginPage }) => {
+    'User should login successfully and validate all products',
+    { tag: '@regression' },
+    async ({ page, loggedInPage }) => {
 
-    await page.goto('/');
+        const productPage = new ProductPage(page);
 
-    await loginPage.login(
-      testData.login.username,
-      testData.login.password
-    );
+        // Product Names
+        const productNames =
+            await productPage.getAllProductNames();
 
-    // Check URL after login
-    await expect(page).toHaveURL(
-     'https://www.saucedemo.com/inventory.html'
-    );
+        console.log('Product Names:', productNames);
 
-    const productPage = new ProductPage(page);
+        expect(productNames)
+            .toContain('Sauce Labs Backpack');
 
-    await productPage.clickSettingIcon();
-    await productPage.clickaboutLink();
-  }
+
+        // Product Descriptions
+        const productDescriptions =
+            await productPage.getAllProductDescriptions();
+
+        console.log(
+            'Product Descriptions:',
+            productDescriptions
+        );
+
+        expect(productDescriptions[0])
+            .toContain('carry.allTheThings');
+
+
+        // Product Prices
+        const productPrices =
+            await productPage.getAllProductPrices();
+
+        console.log(
+            'Product Prices:',
+            productPrices
+        );
+
+        expect(productPrices)
+            .toContain('$29.99');
+
+
+        // Add to Cart Buttons
+        const addToCartButtons =
+            await productPage.getAllAddToCartButtons();
+
+        console.log(
+            'Add to Cart Buttons:',
+            addToCartButtons
+        );
+
+        expect(addToCartButtons)
+            .toHaveLength(6);
+
+
+        // A to Z
+        await productPage.filterProducts('az');
+
+        const namesAZ =
+            await productPage.getAllProductNames();
+
+        expect(namesAZ)
+            .toEqual([...namesAZ].sort());
+
+
+        // Z to A
+        await productPage.filterProducts('za');
+
+        const namesZA =
+            await productPage.getAllProductNames();
+
+        expect(namesZA)
+            .toEqual([...namesZA].sort().reverse());
+
+
+        // Price Low to High
+        await productPage.filterProducts('lohi');
+
+        const pricesLow =
+            await productPage.getAllProductPrices();
+
+        const lowPrices = pricesLow.map(price =>
+            Number(price.replace('$', ''))
+        );
+
+        expect(lowPrices)
+            .toEqual(
+                [...lowPrices].sort((a, b) => a - b)
+            );
+
+
+        // Price High to Low
+        await productPage.filterProducts('hilo');
+
+        const pricesHigh =
+            await productPage.getAllProductPrices();
+
+        const highPrices = pricesHigh.map(price =>
+            Number(price.replace('$', ''))
+        );
+
+        expect(highPrices)
+            .toEqual(
+                [...highPrices].sort((a, b) => b - a)
+            );
+    }
 );
