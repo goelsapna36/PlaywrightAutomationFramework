@@ -1,15 +1,15 @@
 import { test, expect } from '@playwright/test';
-import postapi from '../../utils/test-data/api_request/POst_Api.json';
 
-test.use({
-  baseURL: process.env.Base_API_URL
-});
+import postapi from '../../utils/test-data/api_request/POst_Api.json';
 
 test('POST API Request Test', async ({ request }) => {
 
-  const post = await request.post('/booking', {
-    data: postapi
-  });
+  const post = await request.post(
+    'https://restful-booker.herokuapp.com/booking',
+    {
+      data: postapi,
+    }
+  );
 
   console.log('Status:', post.status());
   console.log('URL:', post.url());
